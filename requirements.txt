@@ -1,0 +1,4 @@
+networkx>=3.0
+conllu>=4.5
+matplotlib>=3.5
+numpy>=1.21
