@@ -44,14 +44,41 @@ def load_and_compute(n_bins=20):
                 new_x = np.linspace(0, 100, n_bins)
                 interp_wf = np.interp(new_x, orig_x, wf)
                 
+                # --- Advanced Length-Normalized Features ---
+                length = len(wf)
+                mean_val = float(np.mean(wf))
+                peak_val = max(wf)
+                
+                # 1. Relative Peak Position (0.0 to 1.0)
+                # Where in the sentence does the maximum memory burden occur?
+                rel_peak_pos = float(np.argmax(wf)) / length
+                
+                # 2. Max-to-Mean Ratio (Stress Gap)
+                # How much higher is the peak compared to the average?
+                peak_mean_ratio = float(peak_val / mean_val) if mean_val > 0 else 0.0
+                
+                # 3. Change Rate (Volatility Density)
+                # Average change in burden per word (step-to-step absolute difference)
+                abs_diffs = np.abs(np.diff(wf))
+                change_rate = float(np.sum(abs_diffs)) / length
+                
+                # 4. Waveform Skewness
+                # Is the burden front-loaded (positive skew) or back-loaded (negative skew)?
+                # using pandas for quick skew calculation
+                skewness = float(pd.Series(wf).skew()) if length >= 3 else 0.0
+                
                 rows.append({
                     "Language": lang, 
                     "Type": type_label, 
                     "Variance": float(np.var(wf)), 
                     "Std": float(np.std(wf)), 
-                    "Peak": max(wf), 
-                    "Mean": float(np.mean(wf)), 
-                    "Length": len(wf), 
+                    "Peak": peak_val, 
+                    "Mean": mean_val, 
+                    "Length": length, 
+                    "Rel_Peak_Pos": rel_peak_pos,
+                    "Peak_Mean_Ratio": peak_mean_ratio,
+                    "Change_Rate": change_rate,
+                    "Skewness": skewness if pd.notna(skewness) else 0.0,
                     "Waveform": wf, 
                     "Interp_Waveform": interp_wf
                 })

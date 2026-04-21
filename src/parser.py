@@ -1,7 +1,7 @@
 import os
 import networkx as nx
 from typing import List, Dict, Tuple, Optional
-from conllu import parse
+from conllu import parse_incr
 
 def build_tree_from_sentence(sentence) -> nx.DiGraph:
     """
@@ -59,7 +59,8 @@ MAX_EDGES = 12   # exclusive upper bound (n < 12)
 
 
 def parse_conllu_file(filepath: str,
-                      max_edges: int = MAX_EDGES
+                      max_edges: int = MAX_EDGES,
+                      max_sentences: Optional[int] = None
                       ) -> List[Dict]:
     """
     Read a .conllu file and return a list of dicts, each containing:
@@ -70,30 +71,31 @@ def parse_conllu_file(filepath: str,
 
     Only sentences with  1 < n_edges < max_edges  are kept.
     """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        data = f.read()
-
-    sentences = parse(data)
     results: List[Dict] = []
 
-    for idx, sentence in enumerate(sentences, start=1):
-        tree = build_tree_from_sentence(sentence)
-        n = len(tree.edges)
+    with open(filepath, 'r', encoding='utf-8') as f:
+        for idx, sentence in enumerate(parse_incr(f), start=1):
+            tree = build_tree_from_sentence(sentence)
+            n = len(tree.edges)
 
-        if n < max_edges and n > 1:
-            text = sentence.metadata.get('text', '') if sentence.metadata else ''
-            results.append({
-                'tree'   : tree,
-                'sent_id': idx,
-                'text'   : text,
-                'n_edges': n,
-            })
+            if n < max_edges and n > 1:
+                text = sentence.metadata.get('text', '') if sentence.metadata else ''
+                results.append({
+                    'tree'   : tree,
+                    'sent_id': idx,
+                    'text'   : text,
+                    'n_edges': n,
+                })
+            
+            if max_sentences is not None and len(results) >= max_sentences:
+                break
 
     return results
 
 
 def parse_all_conllu_in_dir(directory: str,
-                            max_edges: int = MAX_EDGES
+                            max_edges: int = MAX_EDGES,
+                            limit_per_lang: Optional[int] = None
                             ) -> Dict[str, List[Dict]]:
     """
     Walk a directory, find every .conllu file, parse and filter them.
@@ -103,18 +105,21 @@ def parse_all_conllu_in_dir(directory: str,
     dict :  { lang : [ {tree, sent_id, text, n_edges}, … ] }
     """
     corpus: Dict[str, List[Dict]] = {}
+    conllu_files = []
     for root, _dirs, files in os.walk(directory):
         for fname in sorted(files):
             if fname.endswith('.conllu'):
-                fpath = os.path.join(root, fname)
-                trees = parse_conllu_file(fpath, max_edges)
+                conllu_files.append((os.path.join(root, fname), fname))
+    
+    total_files = len(conllu_files)
+    for i, (fpath, fname) in enumerate(conllu_files, 1):
+        # ── Extract language name from filename ──
+        lang = fname.replace('_train.conllu', '').replace('_test.conllu', '').replace('.conllu', '')
+        
+        print(f"[{i}/{total_files}] Processing {lang}...", end='\r')
+        trees = parse_conllu_file(fpath, max_edges, max_sentences=limit_per_lang)
+        corpus[lang] = trees
+        print(f"[{i}/{total_files}] ✓ Loaded {lang:<15s} : {len(trees):>5d} sentences (edges < {max_edges})")
 
-                # ── Extract language name from filename ──
-                lang = fname.replace('_train.conllu', '')
-                lang = lang.replace('_test.conllu', '')
-                lang = lang.replace('.conllu', '')
-
-                corpus[lang] = trees
-#                 print(f"  ✓ {lang:<20s}  ({fname})  →  {len(trees)} sentences  (edges < {max_edges})")
     return corpus
 
