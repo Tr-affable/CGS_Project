@@ -62,10 +62,33 @@ def load_and_compute(n_bins=20):
                 abs_diffs = np.abs(np.diff(wf))
                 change_rate = float(np.sum(abs_diffs)) / length
                 
-                # 4. Waveform Skewness
-                # Is the burden front-loaded (positive skew) or back-loaded (negative skew)?
-                # using pandas for quick skew calculation
-                skewness = float(pd.Series(wf).skew()) if length >= 3 else 0.0
+                # 4. Waveform Skewness & Kurtosis
+                # use pandas Series for these stat moments
+                wf_series = pd.Series(wf)
+                skewness = float(wf_series.skew()) if length >= 3 else 0.0
+                kurtosis = float(wf_series.kurt()) if length >= 4 else 0.0
+                
+                # 5. AUC (Area Under Curve) - total energy
+                # Using trapezoidal integration normalized by sentence length
+                auc = float(np.trapz(wf)) / length
+                
+                # 6. Peak Count (Cognitive Bottlenecks)
+                # Simple local maxima count: word where burden is > neighbors
+                # normalized by length (peaks per word)
+                peak_count = 0
+                for j in range(1, length - 1):
+                    if wf[j] > wf[j-1] and wf[j] >= wf[j+1]:
+                        peak_count += 1
+                if length > 0:
+                   peak_count = (peak_count + 1) / length # +1 for global max if monotonic
+                
+                # 7. Temporal Centroid (Mass Center)
+                # Weighted average of positions by burden (normalized 0.0 to 1.0)
+                burden_sum = np.sum(wf)
+                if burden_sum > 0:
+                    centroid = np.sum(np.arange(length) * wf) / (burden_sum * length)
+                else:
+                    centroid = 0.5
                 
                 rows.append({
                     "Language": lang, 
@@ -79,6 +102,10 @@ def load_and_compute(n_bins=20):
                     "Peak_Mean_Ratio": peak_mean_ratio,
                     "Change_Rate": change_rate,
                     "Skewness": skewness if pd.notna(skewness) else 0.0,
+                    "Kurtosis": kurtosis if pd.notna(kurtosis) else 0.0,
+                    "AUC": auc,
+                    "Peak_Count": peak_count,
+                    "Centroid": centroid,
                     "Waveform": wf, 
                     "Interp_Waveform": interp_wf
                 })
