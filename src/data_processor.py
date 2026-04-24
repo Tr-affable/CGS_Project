@@ -80,7 +80,7 @@ def load_and_compute(n_bins=20):
                     if wf[j] > wf[j-1] and wf[j] >= wf[j+1]:
                         peak_count += 1
                 if length > 0:
-                   peak_count = (peak_count + 1) / length # +1 for global max if monotonic
+                    peak_count = (peak_count + 1) / length # +1 for global max if monotonic
                 
                 # 7. Temporal Centroid (Mass Center)
                 # Weighted average of positions by burden (normalized 0.0 to 1.0)
