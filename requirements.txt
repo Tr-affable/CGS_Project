@@ -1,4 +1,18 @@
+# Core Data Processing & Analysis
 networkx>=3.0
 conllu>=4.5
 matplotlib>=3.5
 numpy>=1.21
+pandas
+scipy
+jupyter
+
+# Machine Learning Pipeline (Typology & Classification)
+scikit-learn
+xgboost
+shap
+seaborn
+
+# Track 3: LLM Attention Probe Dependencies
+torch
+transformers
